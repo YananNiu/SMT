@@ -7,7 +7,7 @@ from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
 from functools import partial
 from smt.models.vit_model_collection import Layer_scale_init_Block
-from smt.models.vit_model_collection import vit_model_ts, vit_model_img,vit_model_imgs,vit_model_img_ts,vit_model_2img_ts,vit_model_img_ts_referencetoken
+from smt.models.vit_model_collection import vit_model_ts, vit_model_img,vit_model_imgs,vit_model_img_ts,vit_model_2img_ts
 from smt.models.cnn_model_collection import CNN_LSTM, TSImageModel
 from smt.models.lstnet import LSTNet_model
 from smt.train_val_test import apply_encoder
@@ -33,7 +33,7 @@ def create_model(args,img_size,ts_size,in_chans,img_num):
         model = eval(f"""{args.model_skeleton}(ts_shape = ts_size,
                      embed_dim=args.embed_dim, depth=args.depth_transformer, num_heads=args.num_heads, mlp_ratio=4, qkv_bias=True,
                      qk_scale=None, attn_drop_rate=args.attn_drop,drop_rate=args.drop_rate, norm_layer=partial(nn.LayerNorm, eps=1e-6),block_layers=Layer_scale_init_Block)""")
-    elif args.model_skeleton == 'vit_model_img_ts' or args.model_skeleton == 'vit_model_2img_ts' or args.model_skeleton == 'vit_model_img_ts_referencetoken':
+    elif args.model_skeleton == 'vit_model_img_ts' or args.model_skeleton == 'vit_model_2img_ts':
         model = eval(f"""{args.model_skeleton}(img_size=img_size,  patch_size=16, in_chans=in_chans, 
                      ts_shape = ts_size,
                      embed_dim=args.embed_dim, depth=args.depth_transformer, num_heads=args.num_heads, mlp_ratio=4, qkv_bias=True,
@@ -75,36 +75,36 @@ def make_data_img(Datagenerator, args,img_num):
     if img_num != None:
         train_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, 
                                    flag = 'train',img_num=args.img_num,data_flag=args.data_flag,indices=args.indices,creat_real_test=False,
-                                   image_token = args.image_token, smart_token=args.smart_token)
+                                   image_token = args.image_token)
         valid_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, 
                                 flag = 'val',img_num=args.img_num, data_flag=args.data_flag,indices=args.indices,creat_real_test=False,
-                                image_token = args.image_token, smart_token=args.smart_token)
+                                image_token = args.image_token)
         test_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, 
                                 flag = 'test',img_num=args.img_num, data_flag=args.data_flag,indices=args.indices,creat_real_test=False,
-                                image_token = args.image_token, smart_token=args.smart_token)
+                                image_token = args.image_token)
     elif args.ts_token!=None:
         train_data = Datagenerator(image1 = args.image1, image_time1 = args.image_time1,image2 = args.image2, image_time2 = args.image_time2,
                                    ts_data=args.ts_data,horizon=args.horizon, window=1,
                                    flag = 'train',data_flag=args.data_flag,indices=args.indices,creat_real_test=False,
-                                   image_token = args.image_token, smart_token=args.smart_token,ts_token=args.ts_token)
+                                   image_token = args.image_token,ts_token=args.ts_token)
         valid_data = Datagenerator(image1 = args.image1, image_time1 = args.image_time1,image2 = args.image2, image_time2 = args.image_time2,
                                    ts_data=args.ts_data,horizon=args.horizon, window=1,
                                 flag = 'val',data_flag=args.data_flag,indices=args.indices,creat_real_test=False,
-                                image_token = args.image_token, smart_token=args.smart_token,ts_token=args.ts_token)
+                                image_token = args.image_token,ts_token=args.ts_token)
         test_data = Datagenerator(image1 = args.image1, image_time1 = args.image_time1,image2 = args.image2, image_time2 = args.image_time2,
                                   ts_data=args.ts_data,horizon=args.horizon, window=1,
                                 flag = 'test',data_flag=args.data_flag,indices=args.indices,creat_real_test=False,
-                                image_token = args.image_token, smart_token=args.smart_token,ts_token=args.ts_token)
+                                image_token = args.image_token,ts_token=args.ts_token)
     else:    
         train_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                 flag = 'train',data_flag=args.data_flag,indices=args.indices,creat_real_test=False,special_test=args.special_test,
-                                image_token=args.image_token,ts_token=args.ts_token,smart_token=args.smart_token)
+                                image_token=args.image_token,ts_token=args.ts_token)
         valid_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                 flag = 'val',data_flag=args.data_flag,indices=args.indices,creat_real_test=False,special_test=args.special_test,
-                                image_token=args.image_token,ts_token=args.ts_token,smart_token=args.smart_token)
+                                image_token=args.image_token,ts_token=args.ts_token)
         test_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                 flag = 'test',data_flag=args.data_flag,indices=args.indices,creat_real_test=False,special_test=args.special_test,
-                                image_token=args.image_token,ts_token=args.ts_token,smart_token=args.smart_token)
+                                image_token=args.image_token,ts_token=args.ts_token)
 
     return train_data, valid_data, test_data
 
@@ -113,32 +113,32 @@ def make_data_vilt(Datagenerator, args):
         train_data = Datagenerator(image1 = args.image1, image_time1 = args.image_time1,image2 = args.image2, image_time2 = args.image_time2,
                                    ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                    flag = 'train',meteo=args.meteo,data_flag=args.data_flag,indices=args.indices,
-                                   image_token = args.image_token, smart_token=args.smart_token,creat_real_test=False)
+                                   image_token = args.image_token,creat_real_test=False)
         valid_data = Datagenerator(image1 = args.image1, image_time1 = args.image_time1,image2 = args.image2, image_time2 = args.image_time2,
                                    ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                    flag = 'val',meteo=args.meteo,data_flag=args.data_flag,indices=args.indices,
-                                   image_token = args.image_token, smart_token=args.smart_token,creat_real_test=False)
+                                   image_token = args.image_token,creat_real_test=False)
         test_data = Datagenerator(image1 = args.image1, image_time1 = args.image_time1,image2 = args.image2, image_time2 = args.image_time2,
                                    ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                    flag = 'test',meteo=args.meteo,data_flag=args.data_flag,indices=args.indices,
-                                   image_token = args.image_token, smart_token=args.smart_token,creat_real_test=False)
+                                   image_token = args.image_token,creat_real_test=False)
     else: # use Datagenerator_ViLT 
         train_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                     flag = 'train',meteo=args.meteo,data_flag=args.data_flag,indices=args.indices,
-                                    image_token = args.image_token,ts_token=args.ts_token, smart_token=args.smart_token,creat_real_test=False,special_test=args.special_test)
+                                    image_token = args.image_token,ts_token=args.ts_token,creat_real_test=False,special_test=args.special_test)
         valid_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                 flag = 'val',meteo=args.meteo,data_flag=args.data_flag,indices=args.indices,
-                                image_token = args.image_token,ts_token=args.ts_token, smart_token=args.smart_token,creat_real_test=False,special_test=args.special_test)
+                                image_token = args.image_token,ts_token=args.ts_token,creat_real_test=False,special_test=args.special_test)
         test_data = Datagenerator(image = args.image, image_time = args.image_time,ts_data=args.ts_data,horizon=args.horizon, window=args.window,
                                 flag = 'test',meteo=args.meteo,data_flag=args.data_flag,indices=args.indices,
-                                image_token = args.image_token,ts_token=args.ts_token, smart_token=args.smart_token,creat_real_test=False,special_test=args.special_test)
+                                image_token = args.image_token,ts_token=args.ts_token,creat_real_test=False,special_test=args.special_test)
     return train_data, valid_data, test_data
 
 
 
 def make_vilt(Datagenerator, args, device,**kwargs):
     assert args.model_skeleton in ['vit_model_ts','vit_model_img','vit_model_imgs','vit_model_img_ts','vit_model_2img_ts',
-                                   'vit_model_img_ts_referencetoken','CNN_LSTM','CNNLSTM_2camera','CNNLSTM_LSTNet','LSTNet']
+                                   'CNN_LSTM','CNNLSTM_2camera','CNNLSTM_LSTNet','LSTNet']
     
     img_num = kwargs.get('img_num')
 

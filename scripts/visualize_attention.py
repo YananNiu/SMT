@@ -1,14 +1,17 @@
-"""Attention-rollout visualisation for the SMT (vit_model_img_ts) model.
+"""Attention visualisation for the SMT (vit_model_img_ts) model.
 
-Rebuilds the model with its attention hook enabled, runs one image+time-series
-sample, rolls out the attention across all transformer layers, and overlays the
-CLS-to-image-patch attention on the input sky image.
+Follows Attention_visualization.ipynb: rebuilds the model with its attention
+hook enabled, runs one image+time-series sample, and produces two CAM overlays
+of the [CLS]->image-patch attention on the sky image:
+
+  * last layer  -- attention of the final transformer block (heads averaged)
+  * all layers  -- attention rollout across every block (Abnar & Zuidema, 2020)
 
     python scripts/visualize_attention.py --config configs/smt.yaml \
         --ckpt outputs/smt.pt --index 0 --out outputs/attention.png
 
-If no --ckpt is given the model runs with random weights (the map is then just
-a sanity check of the plumbing, not a trained explanation).
+Without --ckpt the model runs with random weights (a plumbing sanity check,
+not a trained explanation).
 """
 import argparse
 import os
@@ -18,21 +21,39 @@ from functools import partial
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def rollout(attentions, discard_ratio=0.0):
-    """Abnar & Zuidema (2020) attention rollout.
+def compute_rollout_attention(layer_matrices):
+    """Attention rollout (as in Attention_visualization.ipynb).
 
-    attentions: list of [B, heads, N, N] tensors (one per layer).
-    Returns the [N, N] rolled-out attention for the first sample.
+    layer_matrices: list of [N, N] head-averaged attention matrices, one per
+    block. Adds the residual/identity to each layer and multiplies them
+    together (no row re-normalisation), returning the [N, N] joint attention.
     """
     import torch
-    result = torch.eye(attentions[0].size(-1))
-    with torch.no_grad():
-        for attn in attentions:
-            a = attn[0].mean(0)                      # average over heads -> [N, N]
-            a = a + torch.eye(a.size(-1))            # add residual/identity
-            a = a / a.sum(dim=-1, keepdim=True)      # row-normalise
-            result = a @ result
-    return result
+    n = layer_matrices[0].shape[-1]
+    eye = torch.eye(n)
+    mats = [m + eye for m in layer_matrices]
+    joint = mats[0]
+    for m in mats[1:]:
+        joint = m @ joint
+    return joint
+
+
+def patch_heatmap(cls_vec, gh, gw, img_size, F):
+    """CLS->patch vector -> normalised [0,1] heat map at image resolution."""
+    import numpy as np
+    m = cls_vec.reshape(1, 1, gh, gw)
+    m = F.interpolate(m, size=img_size, mode="bilinear", align_corners=False)[0, 0].numpy()
+    return (m - m.min()) / (np.ptp(m) + 1e-8)
+
+
+def cam_overlay(raw01, heat, cm):
+    """show_cam_on_image (Attention_visualization.ipynb): additive CAM.
+
+    JET colormap of the attention added onto the image, then normalised.
+    """
+    heat_rgb = cm.jet(heat)[..., :3]
+    cam = heat_rgb + raw01
+    return cam / cam.max()
 
 
 def main():
@@ -47,9 +68,11 @@ def main():
     import numpy as np
     import torch
     import torch.nn as nn
+    import torch.nn.functional as F
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
     from smt.config import load_config
     from smt.preprocess import ensure_ghi_index
     from smt.data_provider import DataGenerator_ViLT
@@ -58,7 +81,7 @@ def main():
     args = load_config(args_cli.config, {"data_root": args_cli.data_root})
     args.ts_data = ensure_ghi_index(args.ts_data, args.latitude, args.longitude, args.altitude)
     assert args.model_skeleton == "vit_model_img_ts", \
-        "attention rollout is defined for the SMT model (vit_model_img_ts)"
+        "attention visualisation is defined for the SMT model (vit_model_img_ts)"
     device = torch.device("cpu")
 
     ds = DataGenerator_ViLT(
@@ -93,22 +116,29 @@ def main():
     ts = torch.from_numpy(ds.rawdat[args_cli.index][None]).float()
 
     with torch.no_grad():
-        _, attn = model(x, ts)
+        _, attn = model(x, ts)          # attn: list (per block) of [1, heads, N, N]
 
-    roll = rollout(attn)                                          # [N, N]
     n_patches = model.patch_embed.num_patches
     gh, gw = model.patch_embed.grid_size
-    cls_to_patch = roll[0, 1:1 + n_patches].reshape(gh, gw).numpy()
-    cls_to_patch = (cls_to_patch - cls_to_patch.min()) / (np.ptp(cls_to_patch) + 1e-8)
+    # per-block, average over heads -> [N, N]
+    per_layer = [a[0].mean(0) for a in attn]
 
-    # upsample the patch grid to the image size
-    heat = np.kron(cls_to_patch, np.ones((img_size[0] // gh, img_size[1] // gw)))
+    # last layer: [CLS] row over the image patches (drop [CLS] and the ts token)
+    cls_last = per_layer[-1][0, 1:1 + n_patches]
+    # all layers: attention rollout, then the same [CLS]->image-patch slice
+    cls_roll = compute_rollout_attention(per_layer)[0, 1:1 + n_patches]
+
+    raw01 = raw.astype(np.float32) / 255.0
+    heat_last = patch_heatmap(cls_last, gh, gw, img_size, F)
+    heat_roll = patch_heatmap(cls_roll, gh, gw, img_size, F)
+    cam_last = cam_overlay(raw01, heat_last, cm)
+    cam_roll = cam_overlay(raw01, heat_roll, cm)
 
     fig, ax = plt.subplots(1, 3, figsize=(12, 4))
     ax[0].imshow(raw); ax[0].set_title(f"sky image\n{str(t)}"); ax[0].axis("off")
-    ax[1].imshow(cls_to_patch, cmap="jet"); ax[1].set_title(f"CLS attention\n(patch grid {gh}x{gw})"); ax[1].axis("off")
-    ax[2].imshow(raw); ax[2].imshow(heat, cmap="jet", alpha=0.5)
-    ax[2].set_title(f"overlay (patch_mode={args.patch_mode})"); ax[2].axis("off")
+    ax[1].imshow(cam_last); ax[1].set_title("last-layer attention"); ax[1].axis("off")
+    ax[2].imshow(cam_roll)
+    ax[2].set_title(f"all-layer rollout (patch_mode={args.patch_mode})"); ax[2].axis("off")
     fig.tight_layout()
     os.makedirs(os.path.dirname(args_cli.out), exist_ok=True)
     fig.savefig(args_cli.out, dpi=130)

@@ -13,8 +13,9 @@ Everything runs on a tiny **toy slice of the ANT site** shipped in `data/toy/`
 
 <p align="center"><img src="docs/attention_example.png" width="720"></p>
 
-*SMT attention rollout (`patch_mode=column`): the `[CLS]` token concentrates on
-the bright sky / sun column that drives the next-step irradiance.*
+*SMT attention (last-layer and all-layer rollout) from a trained column-patch
+model: each token is one image column, and a few significant columns light up
+over the sky.*
 
 ---
 
@@ -38,7 +39,7 @@ the bright sky / sun column that drives the next-step irradiance.*
   smart-persistence baseline, CNN-LSTM (1 or 2 cameras), LSTNet, CNN-LSTM⊕LSTNet
   fusion, and the flagship **SMT** image+time-series transformer.
 - **SMT ablations**: patch shape (square / row / column) and input branches
-  (image-only / ts-only / image+ts / +reference token).
+  (image-only / ts-only / image+ts).
 - **Attention-rollout visualisation** overlaid on the sky image.
 - **Flexible target**: predict the raw `ghi` or the `ghi_index` (clear-sky
   index); if a csv only has raw GHI, the index is derived from the site
@@ -71,10 +72,16 @@ python scripts/train.py --config configs/smt.yaml --epochs 30
 python scripts/evaluate.py --config configs/smt.yaml --ckpt outputs/smt.pt
 #    -> outputs/smt_pred.csv
 
-# 3. visualise attention
-python scripts/visualize_attention.py --config configs/smt.yaml \
-    --ckpt outputs/smt.pt --index 20 --out outputs/attention.png
+# 3. visualise attention (uses a shipped pretrained checkpoint; see checkpoints/)
+python scripts/visualize_attention.py --config configs/ablation/smt_patch_column.yaml \
+    --ckpt checkpoints/smt_column.pt --index 18 --out outputs/attention.png
 ```
+
+> Two real trained SMT checkpoints (6 heads / 192-dim / 3 layers) are shipped so
+> the attention figures are reproducible without training:
+> `checkpoints/smt_ANT.pt` (square patches, ANT site) and
+> `checkpoints/smt_column.pt` (column patches). Use each with its matching
+> `patch_mode` config.
 
 Common flags for `train.py` / `evaluate.py`: `--config` (required),
 `--data-root`, `--epochs`, `--batch-size`, `--seed`, `--out`, `--ckpt`.
@@ -103,7 +110,7 @@ Every model is one config. Train any of them with
 # patch-shape ablation:  square vs row vs column tokenisation
 python scripts/run_ablation.py --group patch  --epochs 10
 
-# branch ablation:       ts-only / image-only / image+ts / +reference token
+# branch ablation:       ts-only / image-only / image+ts
 python scripts/run_ablation.py --group branch --epochs 10
 
 # everything under configs/ablation/
@@ -131,21 +138,36 @@ Ablation configs (also runnable individually with `scripts/train.py`):
 | `ablation/smt_branch_ts_only.yaml`| time-series branch only (`vit_model_ts`) |
 | `ablation/smt_branch_img_only.yaml`| image branch only (`vit_model_img`) |
 | `ablation/smt_branch_img_ts.yaml` | full image + ts model |
-| `ablation/smt_branch_img_ts_reference.yaml` | image + ts + smart-persistence reference token |
 
 ## Attention visualisation
 
 ```bash
+# column-patch model (the headline figure)
 python scripts/visualize_attention.py \
-    --config configs/smt.yaml --ckpt outputs/smt.pt \
-    --index 20 --out outputs/attention.png
+    --config configs/ablation/smt_patch_column.yaml --ckpt checkpoints/smt_column.pt \
+    --index 18 --out outputs/attention.png
+
+# square-patch model
+python scripts/visualize_attention.py \
+    --config configs/smt.yaml --ckpt checkpoints/smt_ANT.pt \
+    --index 18 --out outputs/attention_square.png
 ```
 
 Rebuilds the SMT model with its attention hook enabled, runs one image+ts
-sample, applies **attention rollout** (Abnar & Zuidema, 2020) across all
-transformer layers, and overlays the `[CLS]`→image-patch attention on the sky
-image. Works for any `patch_mode` (square / row / column); the figure at the top
-was produced from `configs/ablation/smt_patch_column.yaml`.
+sample, and produces two CAM overlays of the `[CLS]`→image-patch attention on
+the sky image (following `Attention_visualization.ipynb`):
+
+- **last-layer attention** — the final transformer block (heads averaged);
+- **all-layer rollout** — attention rollout (Abnar & Zuidema, 2020) across every
+  block (identity added per layer, then multiplied together).
+
+The map is upsampled to image resolution and blended as an additive CAM
+(`show_cam_on_image`: JET colormap of the attention added onto the image, then
+normalised). Works for any `patch_mode` (square / row / column). The figure at
+the top uses `configs/ablation/smt_patch_column.yaml` with the shipped
+`checkpoints/smt_column.pt` (each token = one image column, so significant
+columns light up); a trained model gives sparse, focused attention rather than
+the diffuse map of an untrained one.
 
 ## Target: GHI vs. GHI index
 
@@ -189,7 +211,7 @@ override what you need — the rest come from `smt/config.py:DEFAULTS`.
 | field | meaning |
 |-------|---------|
 | `model_skeleton` | which architecture (values listed below) |
-| `image_token`, `ts_token`, `smart_token` | which input branches are active |
+| `image_token`, `ts_token` | which input branches are active |
 | `patch_mode` | `square` / `row` / `column` (image tokenisation) |
 | `data_root`, `site` | build data paths `{data_root}/{site}_*` |
 | `ts_data`, `image`, `image_time` | override individual data paths (optional) |
@@ -202,8 +224,8 @@ override what you need — the rest come from `smt/config.py:DEFAULTS`.
 | `epochs_max`, `batch_size`, `lr`, `patience`, `warmup_epochs`, `seed` | training |
 
 `model_skeleton` values: `vit_model_img_ts` (SMT), `vit_model_img`,
-`vit_model_ts`, `vit_model_img_ts_referencetoken`, `vit_model_2img_ts`,
-`CNN_LSTM`, `CNNLSTM_2camera`, `CNNLSTM_LSTNet`, `LSTNet`.
+`vit_model_ts`, `vit_model_2img_ts`, `CNN_LSTM`, `CNNLSTM_2camera`,
+`CNNLSTM_LSTNet`, `LSTNet`.
 
 ## Data
 
@@ -261,6 +283,9 @@ tools/
   compute_ghi_index.py    add clear-sky / GHI-index columns to a raw-GHI csv
 
 data/toy/                 shipped toy ANT slice (images, timestamps, GHI csv, raw csv)
+checkpoints/              trained SMT models for the attention demo
+  smt_ANT.pt              square patches (ANT site)
+  smt_column.pt           column patches
 outputs/                  checkpoints, predictions, figures (git-ignored)
 ```
 

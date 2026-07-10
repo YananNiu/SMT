@@ -67,7 +67,7 @@ def main():
             image=args.image, image_time=args.image_time, ts_data=args.ts_data,
             horizon=args.horizon, window=args.window, flag="test",
             data_flag=args.data_flag, indices=args.indices, special_test=args.special_test,
-            image_token=False, ts_token=True, smart_token=True)
+            image_token=False, ts_token=True)
         pred, true, t = ds.smart_index, ds.labels, ds.times
         tag = "smart-persistence"
     else:

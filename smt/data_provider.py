@@ -8,11 +8,10 @@ import random
             
 class DataGenerator_ViLT(object):
     def __init__(self, image, image_time,ts_data,horizon, window,flag,meteo=False,data_flag='GHI_percent_wrt_max',
-                 indices='auto',image_token = False,ts_token=False, smart_token=False,creat_real_test=False,align_image=True,special_test=False):
+                 indices='auto',image_token = False,ts_token=False,creat_real_test=False,align_image=True,special_test=False):
         # what data to use
         self.image_token = image_token
         self.ts_token = ts_token
-        self.smart_token = smart_token
         self.align_image = align_image
         # img data
         self.pixel_values = np.load(image, mmap_mode='c', allow_pickle=True)
@@ -184,30 +183,26 @@ class DataGenerator_ViLT(object):
             Y = torch.from_numpy(self.labels[excerpt]).float().to(device)
             T = self.times[excerpt]
 
-            Reference = None
-            if self.smart_token:
-                Reference = torch.from_numpy(self.smart_index[excerpt]).float().to(device)
                 
             if self.image_token and self.ts_token:
                 # get corresponding image data
                 X_img = self.preprocess_image(T,device)
-                data_tuple = (X_img, X_ts, Y) + ((Reference, T) if self.smart_token else (T,))
+                data_tuple = (X_img, X_ts, Y) + (T,)
             elif not self.image_token and self.ts_token:
-                data_tuple = (X_ts, Y) + ((Reference, T) if self.smart_token else (T,))
+                data_tuple = (X_ts, Y) + (T,)
             elif self.image_token and not self.ts_token:
                 X_img = self.preprocess_image(T,device)  
-                data_tuple = (X_img, Y) + ((Reference, T) if self.smart_token else (T,))
+                data_tuple = (X_img, Y) + (T,)
             yield data_tuple
             start_idx += batch_size
 
 
 class DataGenerator_ViLT_2img(object):
     def __init__(self, image1, image_time1,image2, image_time2,ts_data,horizon, window,flag,meteo=False,data_flag='GHI_percent_wrt_max',
-                 indices='auto',image_token = False, ts_token= False,smart_token=False,image_stack = False,creat_real_test=False,special_test=False):
+                 indices='auto',image_token = False, ts_token= False,image_stack = False,creat_real_test=False,special_test=False):
         # what data to use
         self.image_token = image_token
         self.ts_token = ts_token
-        self.smart_token = smart_token
         self.image_stack = image_stack
         if self.image_stack: # for 2img CNNLSTM model only
             assert self.image_token == True and self.ts_token == False
@@ -348,9 +343,6 @@ class DataGenerator_ViLT_2img(object):
             Y = torch.from_numpy(self.labels[excerpt]).float().to(device)
             T = self.times[excerpt]
 
-            Reference = None
-            if self.smart_token:
-                Reference = torch.from_numpy(self.smart_index[excerpt]).float().to(device)
 
             if self.image_token:
                 # get corresponding image data
@@ -366,20 +358,19 @@ class DataGenerator_ViLT_2img(object):
                     # for 2img CNNLSTM model only
                     X_img = torch.stack((X_img1,X_img2),dim=1)
                     assert X_img.ndim == 5  
-                    data_tuple = (X_img, Y) + ((Reference, T) if self.smart_token else (T,))
+                    data_tuple = (X_img, Y) + (T,)
                 else:
-                    data_tuple = (X_img1,X_img2, X_ts, Y) + ((Reference, T) if self.smart_token else (T,))
+                    data_tuple = (X_img1,X_img2, X_ts, Y) + (T,)
             else:
-                data_tuple = (X_ts, Y) + ((Reference, T) if self.smart_token else (T,))
+                data_tuple = (X_ts, Y) + (T,)
             yield data_tuple
             start_idx += batch_size
 
 class DataGenerator_imgs(object):
     def __init__(self, image, image_time,ts_data,horizon, flag,window=144,img_num=3,meteo=False,data_flag='GHI_percent_wrt_max',
-                 indices='auto',image_token = False, smart_token=False,creat_real_test=False):
+                 indices='auto',image_token = False,creat_real_test=False):
         # what data to use
         self.image_token = image_token
-        self.smart_token = smart_token
         
         # img data
         self.pixel_values = np.load(image, mmap_mode='c', allow_pickle=True)
@@ -525,20 +516,17 @@ class DataGenerator_imgs(object):
             Y = torch.from_numpy(self.labels[excerpt]).float().to(device)
             T = self.times[excerpt]
 
-            Reference = None
-            if self.smart_token:
-                Reference = torch.from_numpy(self.smart_index[excerpt]).float().to(device)
 
             if self.image_token:
                 # get corresponding image data
                 image_idxs = np.array([np.where(self.image_times == t)[0][0] for t in T])
                 window_idxs = image_idxs[:, None] - np.arange(self.img_num)[::-1]
                 X_imgs = torch.from_numpy(self.pixel_values[window_idxs].astype(np.float32)/255.0).to(device)
-                data_tuple = (X_imgs, Y) + ((Reference, T) if self.smart_token else (T,))
-                #data_tuple = (X_imgs, X_ts, Y) + ((Reference, T) if self.smart_token else (T,))
+                data_tuple = (X_imgs, Y) + (T,)
+                #data_tuple = (X_imgs, X_ts, Y) + (T,)
             else:
-                data_tuple = (Y,) + ((Reference, T) if self.smart_token else (T,))
-                #data_tuple = (X_ts, Y) + ((Reference, T) if self.smart_token else (T,))
+                data_tuple = (Y,) + (T,)
+                #data_tuple = (X_ts, Y) + (T,)
             yield data_tuple
             start_idx += batch_size
 

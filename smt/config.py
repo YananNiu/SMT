@@ -43,7 +43,6 @@ DEFAULTS = dict(
     model_skeleton="vit_model_img_ts",
     image_token=True,
     ts_token=True,
-    smart_token=False,
 
     # --- transformer ---
     depth_transformer=3,

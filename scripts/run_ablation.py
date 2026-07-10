@@ -24,8 +24,7 @@ ABL = os.path.join(ROOT, "configs", "ablation")
 
 GROUPS = {
     "patch": ["smt_patch_square", "smt_patch_row", "smt_patch_column"],
-    "branch": ["smt_branch_ts_only", "smt_branch_img_only",
-               "smt_branch_img_ts", "smt_branch_img_ts_reference"],
+    "branch": ["smt_branch_ts_only", "smt_branch_img_only", "smt_branch_img_ts"],
 }
 
 
