@@ -1,0 +1,23 @@
+# SMT patch-shape ablation: ROW patches (each token = one full image row).
+model_skeleton: vit_model_img_ts
+image_token: true
+ts_token: true
+target: ghi_index    # predict the clear-sky index (GHI_percent_wrt_max)
+patch_mode: row
+data_root: data/toy
+site: ANT
+latitude: 46.630858    # ANT site; used to compute the GHI index if the csv lacks clear-sky columns
+longitude: 8.580525
+horizon: 12
+window: 144
+indices: ['2023-06-02 00:00', '2023-06-02 23:59']
+embed_dim: 192
+depth_transformer: 3
+num_heads: 6
+attn_drop: 0.1
+epochs_max: 30
+batch_size: 16
+patience: 5
+lr: 5.0e-4
+warmup_epochs: 3
+seed: 0

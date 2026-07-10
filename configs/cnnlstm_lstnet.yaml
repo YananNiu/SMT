@@ -1,0 +1,31 @@
+# CNN-LSTM + LSTNet -- late fusion of the image branch (CNN-LSTM) and the
+# time-series branch (LSTNet) by simple concatenation.
+model_skeleton: CNNLSTM_LSTNet
+image_token: true
+ts_token: true
+
+data_root: data/toy
+site: ANT
+latitude: 46.630858    # ANT site; used to compute the GHI index if the csv lacks clear-sky columns
+longitude: 8.580525
+target: ghi           # predict raw irradiance (W/m^2)
+horizon: 12
+window: 144
+indices: ['2023-06-02 00:00', '2023-06-02 23:59']
+
+# LSTNet branch
+hidCNN: 100
+hidRNN: 100
+hidSkip: 5
+CNN_kernel: 6
+skip: 0
+highway_window: 12
+dropout: 0.2
+output_fun: ReLU
+
+epochs_max: 30
+batch_size: 16
+patience: 5
+lr: 5.0e-4
+warmup_epochs: 3
+seed: 0

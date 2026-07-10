@@ -1,0 +1,31 @@
+# CNN-LSTM, TWO cameras. The two image streams are stacked (B, 2, C, H, W)
+# and share one CNN-LSTM encoder; no time series.
+#
+# The toy slice only ships one ANT camera, so both streams point at the same
+# arrays here purely to exercise the code path. For a real run set image1/image2
+# to two *different* co-located cameras (e.g. EPFL Maurice + BC).
+model_skeleton: CNNLSTM_2camera
+image_token: true
+ts_token: false
+
+data_root: data/toy
+site: ANT
+latitude: 46.630858    # ANT site; used to compute the GHI index if the csv lacks clear-sky columns
+longitude: 8.580525
+target: ghi           # predict raw irradiance (W/m^2)
+horizon: 12
+window: 144
+indices: ['2023-06-02 00:00', '2023-06-02 23:59']
+
+# camera 1 / camera 2 (same toy arrays as a stand-in)
+image1: data/toy/ANT_X_224_all.npy
+image_time1: data/toy/ANT_time_224_all.npy
+image2: data/toy/ANT_X_224_all.npy
+image_time2: data/toy/ANT_time_224_all.npy
+
+epochs_max: 30
+batch_size: 16
+patience: 5
+lr: 5.0e-4
+warmup_epochs: 3
+seed: 0

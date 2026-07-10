@@ -1,0 +1,36 @@
+# SMT, starting from a RAW-GHI csv (only `time` + `ghi` columns).
+#
+# `ghi_ANT_raw.csv` has no clear-sky columns, so the pipeline computes the GHI
+# index from the site coordinates (latitude/longitude below) via
+# smt.base_model.add_clearsky_columns before training. Watch for the
+# "[preprocess] computed GHI-index columns ..." line on the first run.
+#
+# This is the only difference from configs/smt.yaml — everything else is identical.
+model_skeleton: vit_model_img_ts
+image_token: true
+ts_token: true
+
+data_root: data/toy
+site: ANT
+latitude: 46.630858        # ANT site coordinates -> used to derive the GHI index
+longitude: 8.580525
+ts_data: data/toy/ghi_ANT_raw.csv   # raw GHI only; clear-sky columns computed on the fly
+target: ghi_index                    # predict the clear-sky index (GHI_percent_wrt_max)
+
+horizon: 12
+window: 144
+indices: ['2023-06-02 00:00', '2023-06-02 23:59']
+
+patch_mode: square
+embed_dim: 192
+depth_transformer: 3
+num_heads: 6
+drop_rate: 0.0
+attn_drop: 0.1
+
+epochs_max: 30
+batch_size: 16
+patience: 5
+lr: 5.0e-4
+warmup_epochs: 3
+seed: 0

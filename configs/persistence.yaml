@@ -1,0 +1,13 @@
+# Smart-persistence baseline (non-neural reference).
+# Prediction = clear-sky[t+h] * ( GHI[t] / clear-sky[t] ), i.e. the current
+# clear-sky index carried forward. Evaluate with:
+#   python scripts/evaluate.py --config configs/persistence.yaml --persistence
+data_root: data/toy
+site: ANT
+latitude: 46.630858    # ANT site; used to compute the GHI index if the csv lacks clear-sky columns
+longitude: 8.580525
+target: ghi_index    # predict the clear-sky index (GHI_percent_wrt_max)
+horizon: 12
+window: 144
+indices: ['2023-06-02 00:00', '2023-06-02 23:59']
+batch_size: 16

@@ -1,0 +1,20 @@
+# CNN-LSTM -- sky-image-only baseline (single camera).
+model_skeleton: CNN_LSTM
+image_token: true
+ts_token: false
+
+data_root: data/toy
+site: ANT
+latitude: 46.630858    # ANT site; used to compute the GHI index if the csv lacks clear-sky columns
+longitude: 8.580525
+target: ghi           # predict raw irradiance (W/m^2)
+horizon: 12
+window: 144          # ignored by the image-only model, kept for the data provider
+indices: ['2023-06-02 00:00', '2023-06-02 23:59']
+
+epochs_max: 30
+batch_size: 16
+patience: 5
+lr: 5.0e-4
+warmup_epochs: 3
+seed: 0

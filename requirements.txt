@@ -1,0 +1,17 @@
+# core
+torch>=2.0
+timm>=1.0.0
+numpy
+pandas
+pyyaml
+
+# metrics / data prep
+scikit-learn
+scikit-image
+pvlib
+
+# visualisation
+matplotlib
+
+# optional experiment tracking (disabled by default; scripts stub it out)
+# wandb
